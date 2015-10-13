@@ -25,6 +25,12 @@ indexes:
   properties:
   - name: thesis_adviser_key
   - name: thesis_department_key
+  - name: thesis_title
+
+- kind: Thesis
+  properties:
+  - name: thesis_adviser_key
+  - name: thesis_department_key
   - name: thesis_year
   - name: thesis_title
 
@@ -44,6 +50,11 @@ indexes:
   properties:
   - name: thesis_adviser_key
   - name: thesis_year
+  - name: thesis_title
+
+- kind: Thesis
+  properties:
+  - name: thesis_department_key
   - name: thesis_title
 
 - kind: Thesis

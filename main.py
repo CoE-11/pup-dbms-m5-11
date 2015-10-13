@@ -105,7 +105,7 @@ class MainPage(webapp2.RequestHandler):
                     'url_linktext': url_linktext,
                     'authority':authority,
                 }
-        
+
             template = JINJA_ENVIRONMENT.get_template('templates/index.html')
             self.response.write(template.render(template_data))
         else:
@@ -209,8 +209,7 @@ class ImportHandler(webapp2.RequestHandler):
                             response = {
                                 'status':'OK',
                             }
-                    self.response.write("done importing!")
-                    self.response.write("Go back <a href='/'>home</a>.")
+                    self.response.write("done importing! Go back <a href='/'>home</a>.")
                 else:
                     self.response.write("<script>alert('Please import a file.');</script>")
             else:
@@ -307,7 +306,7 @@ class  DeleteStudent(webapp2.RequestHandler):
         authority = auth.cr_authority
         if authority == 'faculty':
             key_to_delete = ndb.Key('Student',int(s_id))
-            th = Thesis.query(projection=[Thesis.thesis_student_keys]).fetch()
+            th = Thesis.query().fetch()
             for t in th:
                 if key_to_delete in t.thesis_student_keys:
                     thesis = t.key.get()
@@ -331,7 +330,7 @@ class  DeleteFaculty(webapp2.RequestHandler):
                 key_to_delete = ndb.Key('Faculty',int(f_id))
             else:
                 key_to_delete = ndb.Key('Faculty',f_id)
-            th = Thesis.query(projection=[Thesis.thesis_adviser_key]).fetch()
+            th = Thesis.query().fetch()
             for t in th:
                 if key_to_delete == t.thesis_adviser_key:
                     thesis = t.key.get()
@@ -380,98 +379,103 @@ class  DeleteUniversity(webapp2.RequestHandler):
             self.response.write("<script>alert('For faculty users only...');</script>")
             self.response.write("Go back <a href='/'>home</a>.")
 
-class APIHandlerPage(webapp2.RequestHandler):
-    def get(self):
-        thesis_list = []
-        if self.request.get('year').isdigit():
-            filt_year = int(self.request.get('year'))
-        else:
-            filt_year = None
-        filt_adviser = self.request.get('adviser')
-
-        if filt_adviser:
-            x = filt_adviser.split(' ')
-            filt_adv_fname = x[0]
-            f = Faculty.query(Faculty.f_first_name == filt_adv_fname).fetch()
-            for faculty in f:
-                filt_adv_key = faculty.key
-        else:
-            filt_adv_key = None
-
-        filt_university = self.request.get('university')
-
-        if filt_university:
-            filt_univ = University.query(University.u_name == filt_university).get()
-            filt_col = College.query(College.c_university_key == filt_univ.key).get()
-            filt_dept = Department.query(Department.d_college_key == filt_col.key).get()
-        else:
-            filt_dept = None
-
-        if filt_year and filt_university and filt_adv_key:
-            thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_department_key == filt_dept.key,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
-        elif filt_year and filt_university:
-            thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_department_key == filt_dept.key).order(+Thesis.thesis_title).fetch()
-        elif filt_year and filt_adv_key:
-            thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
-        elif filt_university and filt_adv_key:
-            thesis = Thesis.query(Thesis.thesis_department_key == filt_dept.key,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
-        elif filt_year:
-            thesis = Thesis.query(Thesis.thesis_year == filt_year).order(+Thesis.thesis_title).fetch()
-        elif filt_adv_key:
-            thesis = Thesis.query(Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
-        elif filt_university:
-            thesis = Thesis.query(Thesis.thesis_department_key == filt_dept.key).order(+Thesis.thesis_title).fetch()
-        else:
-            thesis = Thesis.query().order(+Thesis.thesis_title).fetch()
-
-        for thes in thesis:
-            d = ndb.Key('Department',thes.thesis_department_key.id())
-            dept = d.get()
-            dept_name = dept.d_name
-            
-            c = ndb.Key('College',dept.d_college_key.id())
-            col = c.get()
-            col_name = col.c_name
-
-            u = ndb.Key('University',col.c_university_key.id())
-            univ = u.get()
-            univ_name = univ.u_name
-
-            creator = thes.thesis_created_by.get()
-
-            if thes.thesis_adviser_key:
-                adv = thes.thesis_adviser_key.get()
-                adv_fname = adv.f_first_name
-                adv_lname = adv.f_last_name
+class APIThesisList(webapp2.RequestHandler):
+    def post(self):
+            thesis_list = []
+            if self.request.get('year'):
+                if self.request.get('year').isdigit():
+                    filt_year = int(self.request.get('year'))
+                else:
+                    filt_year = None
             else:
-                adv = None
-                adv_fname = None
-                adv_lname = None
+                filt_year = None
 
-            thesis_list.append({
-                'self_id':thes.key.id(),
-                'thesis_title':thes.thesis_title,
-                'thesis_year':thes.thesis_year,
-                'f_first_name':adv_fname,
-                'f_last_name':adv_lname,
-                'thesis_creator_fname':creator.cr_first_name,
-                'thesis_creator_lname':creator.cr_last_name,
-                })
+            filt_adviser = self.request.get('adviser')
+            logging.info(filt_adviser)
+            if filt_adviser:
+                x = filt_adviser.split(' ')
+                filt_adv_fname = x[0]
+                f = Faculty.query(Faculty.f_first_name == filt_adv_fname).fetch()
+                for faculty in f:
+                    filt_adv_key = faculty.key
+            else:
+                filt_adv_key = None
 
-        if thesis_list:
-            response = {
-                'status':'OK',
-                'data':thesis_list
-            }
-            self.response.headers['Content-Type'] = 'application/json'
-            self.response.out.write(json.dumps(response))
-        else:
-            response = {
-                'status':'Error',
-            }
-            self.response.headers['Content-Type'] = 'application/json'
-            self.response.out.write(json.dumps(response))
+            filt_university = self.request.get('university')
 
+            if filt_university:
+                filt_univ = University.query(University.u_name == filt_university).get()
+                filt_col = College.query(College.c_university_key == filt_univ.key).get()
+                filt_dept = Department.query(Department.d_college_key == filt_col.key).get()
+            else:
+                filt_dept = None
+
+            if filt_year and filt_university and filt_adv_key:
+                thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_department_key == filt_dept.key,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
+            elif filt_year and filt_university:
+                thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_department_key == filt_dept.key).order(+Thesis.thesis_title).fetch()
+            elif filt_year and filt_adv_key:
+                thesis = Thesis.query(Thesis.thesis_year == filt_year,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
+            elif filt_university and filt_adv_key:
+                thesis = Thesis.query(Thesis.thesis_department_key == filt_dept.key,Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
+            elif filt_year:
+                thesis = Thesis.query(Thesis.thesis_year == filt_year).order(+Thesis.thesis_title).fetch()
+            elif filt_adv_key:
+                thesis = Thesis.query(Thesis.thesis_adviser_key == filt_adv_key).order(+Thesis.thesis_title).fetch()
+            elif filt_university:
+                thesis = Thesis.query(Thesis.thesis_department_key == filt_dept.key).order(+Thesis.thesis_title).fetch()
+            else:
+                thesis = Thesis.query().order(+Thesis.thesis_title).fetch()
+
+            for thes in thesis:
+                d = ndb.Key('Department',thes.thesis_department_key.id())
+                dept = d.get()
+                dept_name = dept.d_name
+                
+                c = ndb.Key('College',dept.d_college_key.id())
+                col = c.get()
+                col_name = col.c_name
+
+                u = ndb.Key('University',col.c_university_key.id())
+                univ = u.get()
+                univ_name = univ.u_name
+
+                creator = thes.thesis_created_by.get()
+
+                if thes.thesis_adviser_key:
+                    adv = thes.thesis_adviser_key.get()
+                    adv_fname = adv.f_first_name
+                    adv_lname = adv.f_last_name
+                else:
+                    adv = None
+                    adv_fname = None
+                    adv_lname = None
+
+                thesis_list.append({
+                    'self_id':thes.key.id(),
+                    'thesis_title':thes.thesis_title,
+                    'thesis_year':thes.thesis_year,
+                    'f_first_name':adv_fname,
+                    'f_last_name':adv_lname,
+                    'thesis_creator_fname':creator.cr_first_name,
+                    'thesis_creator_lname':creator.cr_last_name,
+                    })
+
+            if thesis_list:
+                response = {
+                    'status':'OK',
+                    'data':thesis_list
+                }
+                self.response.headers['Content-Type'] = 'application/json'
+                self.response.out.write(json.dumps(response))
+            else:
+                response = {
+                    'status':'Error',
+                }
+                self.response.headers['Content-Type'] = 'application/json'
+                self.response.out.write(json.dumps(response))
+
+class APIHandlerPage(webapp2.RequestHandler):
     def post(self):
         th = Thesis.query(Thesis.thesis_title == self.request.get('thesis_title')).fetch()
         thesis = Thesis()
@@ -582,9 +586,9 @@ class  ThesisEdit(webapp2.RequestHandler):
             authority = auth.cr_authority
             guestbook_name = self.request.get('guestbook_name',
                                               DEFAULT_GUESTBOOK_NAME)
-            greetings_query = Greeting.query(
-                ancestor=guestbook_key(guestbook_name)).order(-Greeting.date)
-            greetings = greetings_query.fetch(10)
+            # greetings_query = Greeting.query(
+            #     ancestor=guestbook_key(guestbook_name)).order(-Greeting.date)
+            # greetings = greetings_query.fetch(10)
 
             s = Thesis.get_by_id(int(th_id))
             d = ndb.Key('Department',s.thesis_department_key.id())
@@ -626,7 +630,7 @@ class  ThesisEdit(webapp2.RequestHandler):
                 'thesis': s,
                 'i':i,
                 'guestbook_name': urllib.quote_plus(guestbook_name),
-                'greetings':greetings,
+                # 'greetings':greetings,
                 'adv': adv,
                 'studs': studs,
                 'user': user,
@@ -1123,8 +1127,8 @@ class ThesisList(webapp2.RequestHandler):
         url_linktext = 'Logout'
         if user:
             universities = []
-            f = Faculty.query(projection=[Faculty.f_first_name,Faculty.f_last_name]).order(+Faculty.f_last_name).fetch()
-            u = University.query(projection=[University.u_name]).order(+University.u_name).fetch()
+            f = Faculty.query().order(+Faculty.f_last_name).fetch()
+            u = University.query().order(+University.u_name).fetch()
             for univ in u:
                 if univ.u_name not in universities:
                     universities.append(univ.u_name)
@@ -1648,6 +1652,7 @@ app = webapp2.WSGIApplication([
     ('/login',LoginPage),
     ('/register',RegisterPage),
     ('/api/handler', APIHandlerPage),
+    ('/api/filter', APIThesisList),
     ('/api/find_thesis', APIThesisFinder),
     ('/api/getRelated', RelatedThesAPI),
     ('/api/searcher', SearcherAPI),

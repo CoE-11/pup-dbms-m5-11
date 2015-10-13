@@ -85,16 +85,17 @@ $(function(){
 		year = $('#filter_year').val()
 		adviser = $('#filter_adviser').val()
 		university = $('#filter_university').val()
-		var thesis_list_api = '/api/handler';
-		$.get(thesis_list_api, {'year': year,'university':university,'adviser':adviser} ,function(response)
+		console.log(year+" "+adviser+" "+university)
+		var thesis_list_api = '/api/filter';
+		$.post(thesis_list_api, {'year': year,'university':university,'adviser':adviser} ,function(response)
 		{
 			if (response.status == 'OK')
 			{
-				response.data.forEach(function(thesis) {
-				var thesis_info = thesis.thesis_year + "   |   " + thesis.thesis_title + "   |   " + thesis.f_first_name + " " + thesis.f_last_name + "    |   " + thesis.thesis_creator_fname + " " + thesis.thesis_creator_lname;
-				$('ul.thesis_list').append('<li>'+thesis_info+' <a class="mybtn" href=\'/thesis/edit/'+thesis.self_id+'\'>Edit</a><a class=\'mybtn\' href=\'/thesis/delete/'+thesis.self_id+'\'>Delete</a></li>');
+				for(var i = 0; i < response.data.length;  i++) {
+				var thesis_info = response.data[i].thesis_year + "   |   " + response.data[i].thesis_title + "   |   " + response.data[i].f_first_name + " " + response.data[i].f_last_name + "   |   " + response.data[i].thesis_creator_fname + " " + response.data[i].thesis_creator_lname;
+				$('ul.thesis_list').append('<li>'+thesis_info+' <a class="mybtn" href=\'/thesis/edit/'+response.data[i].self_id+'\'>Edit</a><a class=\'mybtn\' href=\'/thesis/delete/'+response.data[i].self_id+'\'>Delete</a></li>');
+				}
 				return false;
-				})
 			}
 			else 
 			{$('ul.thesis_list').append('<li>No thesis found<li>');return false;}
